@@ -16,6 +16,7 @@ public class CameraFollow : MonoBehaviour
     {
         if (target == null) return;
 
+        yaw += MobileInput.CameraDelta;
         if (Input.GetMouseButton(1)) yaw += Input.GetAxis("Mouse X") * 4f;
         if (Input.GetKey(KeyCode.Q)) yaw -= 100f * Time.deltaTime;
         if (Input.GetKey(KeyCode.E)) yaw += 100f * Time.deltaTime;

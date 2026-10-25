@@ -13,7 +13,42 @@ pourchassent… et éjecte-les dans le vide d'un coup de dash pour des points bo
 > Si Unity signale que l'ancien Input Manager est désactivé : *Edit → Project Settings → Player →
 > Active Input Handling* → **Both** (ou *Input Manager (Old)*).
 
-## Contrôles
+## Obtenir l'APK Android
+
+### Option 1 : compilation automatique sur GitHub (sans installer Unity)
+
+Le workflow `.github/workflows/build-android.yml` compile l'APK à chaque push. Il a besoin
+d'une licence Unity (la licence Personal gratuite suffit), à ajouter **une seule fois** dans
+*GitHub → Settings → Secrets and variables → Actions → New repository secret* :
+
+| Secret | Valeur |
+|---|---|
+| `UNITY_EMAIL` | l'e-mail de ton compte Unity |
+| `UNITY_PASSWORD` | son mot de passe |
+| `UNITY_LICENSE` | le contenu du fichier `Unity_lic.ulf` |
+
+Le fichier `.ulf` se trouve sur un PC où Unity Hub est connecté et la licence Personal activée :
+- Windows : `C:\ProgramData\Unity\Unity_lic.ulf`
+- macOS : `/Library/Application Support/Unity/Unity_lic.ulf`
+- Linux : `~/.local/share/unity3d/Unity/Unity_lic.ulf`
+
+(Guide détaillé : https://game.ci/docs/github/activation)
+
+Ensuite : onglet **Actions → Build APK Android → Run workflow**. À la fin (~20-30 min la première
+fois), télécharge l'artefact **OrbRush-apk** : il contient `OrbRush.apk`, à copier sur le
+téléphone et à installer (autoriser les « sources inconnues »).
+
+### Option 2 : depuis Unity sur ton PC
+
+1. Dans Unity Hub, installe le module **Android Build Support** (avec OpenJDK et SDK/NDK).
+2. *File → Build Settings → Android → Switch Platform*, puis **Build**.
+
+## Contrôles mobiles
+
+Joystick virtuel à gauche de l'écran, boutons **SAUT** et **DASH** à droite, glisser le doigt
+sur la droite pour tourner la caméra. Bouton retour Android = retour au menu.
+
+## Contrôles clavier
 
 | Touche | Action |
 |---|---|

@@ -33,6 +33,13 @@ public class GameManager : MonoBehaviour
     void Awake()
     {
         I = this;
+        gameObject.AddComponent<MobileInput>();
+        Application.targetFrameRate = 60;
+        if (Application.isMobilePlatform)
+        {
+            Screen.orientation = ScreenOrientation.LandscapeLeft;
+            Screen.sleepTimeout = SleepTimeout.NeverSleep;
+        }
         highScore = PlayerPrefs.GetInt("OrbRush_HighScore", 0);
         SetupCameraAndLight();
         BuildArena(Random.Range(1, 99999));
@@ -349,6 +356,13 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    void NewArena()
+    {
+        ClearDynamic();
+        BuildArena(Random.Range(1, 99999));
+        player.ResetAt(new Vector3(0f, 1f, 0f));
+    }
+
     void ShowBanner(string text, float duration)
     {
         banner = text;
@@ -366,12 +380,7 @@ public class GameManager : MonoBehaviour
             case State.Menu:
             case State.GameOver:
                 if (confirm || (state == State.Menu && Input.GetKeyDown(KeyCode.Space))) StartGame();
-                if (Input.GetKeyDown(KeyCode.R))
-                {
-                    ClearDynamic();
-                    BuildArena(Random.Range(1, 99999));
-                    player.ResetAt(new Vector3(0f, 1f, 0f));
-                }
+                if (Input.GetKeyDown(KeyCode.R)) NewArena();
                 break;
 
             case State.Playing:
@@ -388,6 +397,8 @@ public class GameManager : MonoBehaviour
                 }
                 break;
         }
+
+        MobileInput.ShowControls = state == State.Playing;
 
         // Clignotement pendant l'invulnérabilité.
         bool blink = state == State.Playing && Time.time < invulnerableUntil;
@@ -419,17 +430,20 @@ public class GameManager : MonoBehaviour
     void OnGUI()
     {
         InitStyles();
-        float w = Screen.width, h = Screen.height;
+        float scale = Screen.height / 720f;
+        GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
+        float w = Screen.width / scale, h = 720f;
 
         if (state == State.Menu)
         {
             Shadowed(new Rect(0, h * 0.18f, w, 90), "ORB RUSH", big, new Color(0.3f, 0.95f, 1f));
             Shadowed(new Rect(0, h * 0.32f, w, 40), "Ramasse les orbes. Éjecte les cubes. Ne tombe pas.", mid, Color.white);
             Shadowed(new Rect(0, h * 0.48f, w, 200),
-                "WASD / Flèches : rouler\nEspace : sauter\nShift / Clic gauche : dash (éjecte les cubes)\nClic droit + souris ou Q / E : tourner la caméra\nR : nouvelle arène au pif",
+                MobileInput.Enabled
+                    ? "Joystick à gauche : rouler\nSAUT / DASH : boutons à droite\nGlisser à droite : tourner la caméra"
+                    : "WASD / Flèches : rouler\nEspace : sauter\nShift / Clic gauche : dash (éjecte les cubes)\nClic droit + souris ou Q / E : tourner la caméra\nR : nouvelle arène au pif",
                 new GUIStyle(mid) { fontSize = 20 }, new Color(0.85f, 0.85f, 0.95f));
-            float pulse = 0.6f + 0.4f * Mathf.Sin(Time.time * 4f);
-            Shadowed(new Rect(0, h * 0.78f, w, 40), "Appuie sur ENTRÉE pour jouer", mid, new Color(1f, 0.85f, 0.2f, pulse));
+            MenuButtons(w, h * 0.78f, "JOUER");
             Shadowed(new Rect(16, h - 36, w, 30), "Record : " + highScore + "    Arène #" + seed, small, Color.white);
             return;
         }
@@ -463,7 +477,17 @@ public class GameManager : MonoBehaviour
             Shadowed(new Rect(0, h * 0.42f, w, 40), "Score : " + score + "   (vague " + wave + ")", mid, Color.white);
             bool record = score >= highScore && score > 0;
             Shadowed(new Rect(0, h * 0.50f, w, 40), record ? "NOUVEAU RECORD !" : "Record : " + highScore, mid, new Color(1f, 0.85f, 0.2f));
-            Shadowed(new Rect(0, h * 0.65f, w, 40), "ENTRÉE : rejouer     R : nouvelle arène", mid, Color.white);
+            MenuButtons(w, h * 0.65f, "REJOUER");
         }
+    }
+
+    GUIStyle buttonStyle;
+
+    void MenuButtons(float w, float y, string playLabel)
+    {
+        if (buttonStyle == null)
+            buttonStyle = new GUIStyle(GUI.skin.button) { fontSize = 26, fontStyle = FontStyle.Bold };
+        if (GUI.Button(new Rect(w / 2 - 270, y, 260, 64), playLabel + " (Entrée)", buttonStyle)) StartGame();
+        if (GUI.Button(new Rect(w / 2 + 10, y, 260, 64), "NOUVELLE ARÈNE (R)", buttonStyle)) NewArena();
     }
 }

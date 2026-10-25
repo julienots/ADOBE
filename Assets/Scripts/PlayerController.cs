@@ -36,12 +36,19 @@ public class PlayerController : MonoBehaviour
 
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
+        if (MobileInput.Move.sqrMagnitude > h * h + v * v)
+        {
+            h = MobileInput.Move.x;
+            v = MobileInput.Move.y;
+        }
         Vector3 fwd = cameraRef != null ? Vector3.ProjectOnPlane(cameraRef.forward, Vector3.up).normalized : Vector3.forward;
         Vector3 right = Vector3.Cross(Vector3.up, fwd);
         input = Vector3.ClampMagnitude(fwd * v + right * h, 1f);
 
-        if (Input.GetButtonDown("Jump")) jumpQueued = true;
-        if (Input.GetKeyDown(KeyCode.LeftShift) || Input.GetMouseButtonDown(0)) dashQueued = true;
+        if (Input.GetButtonDown("Jump") || MobileInput.JumpDown) jumpQueued = true;
+        // Sur mobile, les touchers simulent la souris : on ignore alors le clic gauche.
+        bool mouseDash = !MobileInput.Enabled && Input.GetMouseButtonDown(0);
+        if (Input.GetKeyDown(KeyCode.LeftShift) || mouseDash || MobileInput.DashDown) dashQueued = true;
     }
 
     void FixedUpdate()
