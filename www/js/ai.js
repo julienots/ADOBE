@@ -4,7 +4,8 @@
 import { createCanvas, resizeCanvas, smoothstep } from './util.js';
 import { blurChannel } from './imaging.js';
 
-const MODEL_URL = 'models/u2netp.onnx';
+// L'hébergement web de démonstration impose une autre extension : il fournit alors l'URL.
+const MODEL_URL = window.PRISME_MODEL_URL || 'models/u2netp.onnx';
 const ORT_URL = 'vendor/ort/ort.wasm.min.js';
 const SIZE = 320;
 
