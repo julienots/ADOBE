@@ -5,6 +5,8 @@ import { Tool, brushTip, Stroker, clipToSelection, BRUSH_MODES } from './base.js
 import { createCanvas, cloneCanvas, blendWithSelection, hexToRgb, getData, canvasFromData, clamp } from '../util.js';
 import { gaussianBlur, blurAlpha } from '../imaging.js';
 import { unsharp } from '../develop.js';
+import { contentAwareFill } from '../inpaint.js';
+import { busy } from '../ui.js';
 
 const sizeOpt = { key: 'size', label: 'Taille', type: 'range', min: 1, max: 1000, step: 1, unit: ' px', log: true };
 const hardOpt = { key: 'hardness', label: 'Dureté', type: 'range', min: 0, max: 100, unit: ' %' };
@@ -297,14 +299,18 @@ export class CloneTool extends Tool {
 export class HealTool extends Tool {
   constructor(app) {
     super(app, {
-      id: 'heal', name: 'Correcteur localisé', icon: 'bandage', key: 'J', group: 'retouch', cursor: 'none',
-      defaults: { size: 40 },
+      id: 'heal', name: 'Correcteur / Suppression d\'objet', icon: 'bandage', key: 'J', group: 'retouch', cursor: 'none',
+      defaults: { size: 40, mode: 'content' },
     });
     this.wantsCoalesced = true;
   }
 
   options() {
-    return [{ ...sizeOpt, max: 400 }];
+    return [
+      { key: 'mode', label: '', type: 'segmented', options: [['content', 'Suppression intelligente'], ['quick', 'Correcteur rapide']] },
+      { ...sizeOpt, max: 600 },
+      { key: '_hint', type: 'info', label: 'Peignez sur l\'objet ou le défaut à faire disparaître' },
+    ];
   }
 
   down(p) {
@@ -351,12 +357,15 @@ export class HealTool extends Tool {
     this.app.invalidate();
   }
 
-  up() {
+  async up() {
     if (!this.t) return;
     const t = this.t;
     this.t = null;
+    const mask = this.mask;
+    const result = this.opts.mode === 'quick'
+      ? healArea(t.canvas, mask, this.opts.size)
+      : await busy(() => contentAwareFill(t.canvas, mask), 'Suppression de l\'objet…');
     this.tint = null;
-    const result = healArea(t.canvas, this.mask, this.opts.size);
     clearLive(this.app);
     if (!result) return;
     this.app.history.push('Correcteur');

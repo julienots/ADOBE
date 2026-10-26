@@ -214,6 +214,7 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
 .filter-list { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .filter-item { text-align: left; background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 9px; color: var(--text); font-size: 12px; }
 .filter-item:hover { border-color: var(--accent); }
+.filter-item.ai { background: linear-gradient(120deg, rgba(61,181,255,.14), rgba(123,92,255,.16) 50%, rgba(244,85,216,.14)); border-color: #3a3560; }
 
 /* Historique */
 .hist-item { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: 0; border-radius: 7px; padding: 7px 8px; color: var(--text); }

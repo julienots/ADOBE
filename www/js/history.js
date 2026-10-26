@@ -17,8 +17,9 @@ export class History {
   }
 
   // À appeler AVANT de modifier le document.
-  push(label) {
-    this.app.flushPending?.(label);
+  // `keepPending` : ne pas valider les réglages en attente (changement de sélection).
+  push(label, { keepPending = false } = {}) {
+    if (!keepPending) this.app.flushPending?.(label);
     this.undoStack.push({ label, state: this.app.doc.snapshot() });
     if (this.undoStack.length > this.max) this.undoStack.shift();
     this.redoStack = [];

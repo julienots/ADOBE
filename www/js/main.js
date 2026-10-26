@@ -380,7 +380,7 @@ async function showWelcome() {
     el('span', {}, 'Reprendre la dernière session', el('small', { style: { display: 'block' } }, `${saved.name || 'Projet'} · ${saved.width}×${saved.height} · ${when}`)))));
   }
   inner.append(el('div', { class: 'feature-list' },
-    ...['Calques & masques', '16 modes de fusion', 'Courbes & TSL', 'Étalonnage couleur', '23 looks', `${actions && Object.keys(actions.cmds).filter((k) => k.startsWith('filter.')).length - 1} filtres & réglages`, 'Correcteur & tampon', 'Sélection rapide', 'Texte & formes', 'Recadrage & redressement', 'Effets de calque', 'Historique 60 étapes', 'Hors ligne', 'Export JPEG/PNG/WebP'].map((t) => el('span', {}, t))));
+    ...['✨ Détourage IA', '✨ Suppression d\'objet IA', '✨ Flou portrait IA', 'Calques & masques', '16 modes de fusion', 'Courbes & TSL', 'Étalonnage couleur', '23 looks', `${actions && Object.keys(actions.cmds).filter((k) => k.startsWith('filter.')).length - 1} filtres & réglages`, 'Correcteur & tampon', 'Sélection rapide', 'Texte & formes', 'Recadrage & redressement', 'Effets de calque', 'Historique 60 étapes', 'Hors ligne', 'Export JPEG/PNG/WebP'].map((t) => el('span', {}, t))));
   inner.append(el('div', { style: { marginTop: '28px', color: 'var(--faint)', fontSize: '12px' } }, 'Une création ', el('b', { style: { color: '#fff' } }, 'Super'), el('b', { style: { color: '#ffcc1f' } }, 'Essence'), ' Studio'));
   w.append(inner);
   updateStatus();

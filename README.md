@@ -30,6 +30,31 @@ npm run serve          # version web sur http://localhost:8080
 npm install && npm start   # version Windows/Mac/Linux (Electron)
 ```
 
+## Prisme face à Adobe (Photoshop + Lightroom)
+
+| | Prisme | Adobe |
+|---|---|---|
+| Prix | Gratuit, sans abonnement | Abonnement mensuel |
+| Compte obligatoire | Non | Oui |
+| Fonctionne hors ligne | Oui, entièrement (IA comprise) | En partie ; l'IA générative passe par le cloud |
+| Confidentialité | Les photos ne quittent jamais l'appareil | Fonctions IA envoyées aux serveurs d'Adobe |
+| Une seule app pour retouche + développement | Oui | Deux logiciels (Photoshop et Lightroom) |
+| Même app sur Windows, Android et navigateur | Oui | Apps différentes selon la plateforme |
+| Poids | ~20 Mo | Plusieurs Go |
+
+Adobe garde encore de l'avance sur certains points : fichiers RAW, mode CMJN pour
+l'impression, remplissage génératif à partir d'un texte, objets dynamiques, extensions.
+
+## Intelligence artificielle (sur l'appareil, hors ligne)
+
+- **Sélectionner le sujet** / **l'arrière-plan** en un clic (modèle U²-Net + affinage des contours guidé par l'image).
+- **Supprimer l'arrière-plan** : crée un masque de calque modifiable (non destructif).
+- **Remplacer l'arrière-plan** : couleur, dégradé, photo floutée ou transparent.
+- **Flou d'arrière-plan (portrait)** avec aperçu en direct.
+- **Remplissage d'après le contenu** : la zone sélectionnée est reconstruite à partir du reste de la photo.
+- **Suppression d'objet au pinceau** (outil Correcteur) : on peint sur l'objet, il disparaît.
+- **Réglages ciblés** : dans le panneau Réglages, « Appliquer à : Sujet / Arrière-plan ».
+
 ## Fonctionnalités
 
 **Calques** : calques illimités, 16 modes de fusion, opacité, verrouillage, glisser-déposer pour
@@ -88,6 +113,10 @@ www/                 Application (HTML/CSS/JavaScript, sans dépendance)
   js/panels.js       Panneaux Réglages, Looks, Calques, Filtres, Historique, Infos
   js/actions.js      Commandes, menus, raccourcis
   js/io.js           Ouverture, EXIF, export, projets, sauvegarde automatique
+  js/ai.js           Détection du sujet (ONNX Runtime Web + U²-Net-p)
+  js/inpaint.js      Remplissage d'après le contenu (PatchMatch multi-échelle)
+  vendor/ort/        ONNX Runtime Web (licence MIT, Microsoft)
+  models/            Modèle U²-Net-p (licence Apache 2.0)
 electron/main.js     Application Windows
 capacitor.config.json  Application Android
 assets/, build/      Icônes et logos (logo « P » de Prisme, logo SuperEssence)

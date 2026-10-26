@@ -18,10 +18,9 @@ class SelectionTool extends Tool {
 
   commitSelection(newSel, mode, label = 'Sélection') {
     const app = this.app;
-    app.flushPending();
     if (newSel && this.opts.feather > 0) newSel = featherSelection(newSel, this.opts.feather);
     const result = combineSelection(this.doc, this.doc.selection, newSel, mode);
-    app.history.push(label);
+    app.history.push(label, { keepPending: true });
     this.doc.selection = result && !isEmptySelection(result) ? result : null;
     app.invalidate();
     app.emit('selection');
@@ -29,7 +28,7 @@ class SelectionTool extends Tool {
 
   deselectClick() {
     if (!this.doc.selection) return;
-    this.app.history.push('Désélectionner');
+    this.app.history.push('Désélectionner', { keepPending: true });
     this.doc.selection = null;
     this.app.invalidate();
     this.app.emit('selection');
@@ -336,6 +335,7 @@ export class QuickSelectTool extends SelectionTool {
       { key: 'size', label: 'Taille', type: 'range', min: 4, max: 400, unit: ' px' },
       { key: 'tolerance', label: 'Tolérance', type: 'range', min: 1, max: 100 },
       { key: 'sampleAll', label: 'Tous les calques', type: 'checkbox' },
+      { key: '_subject', label: '✨ Sélectionner le sujet', type: 'button', action: () => this.app.actions.run('ai.selectSubject') },
     ];
   }
 

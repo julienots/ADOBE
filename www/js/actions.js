@@ -13,6 +13,9 @@ import {
 import { toast, busy, modal, formDialog, confirmDialog, buildFields, promptDialog } from './ui.js';
 import { openImageFile, exportDialog, saveProject, saveBlob, placeAsLayer, decodeImage } from './io.js';
 import { loadPref, savePref } from './app.js';
+import { segmentSubject } from './ai.js';
+import { contentAwareFill } from './inpaint.js';
+import { gaussianBlur } from './imaging.js';
 import { isTyping } from './view.js';
 
 const SLOW_FILTERS = new Set(['median', 'oil', 'motionblur', 'zoomblur', 'spinblur', 'halftone', 'lensblur', 'twirl', 'spherize', 'ripple', 'pinch', 'polar', 'chromatic']);
@@ -617,6 +620,167 @@ export function createActions(app, ui) {
   def('image.autoColor', 'Couleur automatique', () => runFilter('autolevels', { clip: 0.5 }).then(() => {}), 'Ctrl+Maj+B', hasDoc);
   def('image.autoContrast', 'Contraste automatique', () => runFilter('autocontrast', { clip: 0.3 }), 'Ctrl+Alt+Maj+L', hasDoc);
 
+  // Intelligence artificielle (calculée sur l'appareil)
+  async function subjectMask(source) {
+    try {
+      return await busy(() => segmentSubject(source), 'Analyse IA du sujet…');
+    } catch (e) {
+      console.error(e);
+      toast('IA indisponible sur cet appareil');
+      return null;
+    }
+  }
+
+  def('ai.selectSubject', 'Sélectionner le sujet', async () => {
+    const mask = await subjectMask(flatten(app.doc));
+    if (!mask) return;
+    app.history.push('Sélectionner le sujet', { keepPending: true });
+    app.doc.selection = cloneCanvas(mask);
+    app.invalidate();
+    app.emit('selection');
+    toast('Sujet sélectionné ✨', 1500);
+  }, 'Ctrl+Alt+Maj+S', hasDoc);
+  def('ai.selectBackground', 'Sélectionner l\'arrière-plan', async () => {
+    const mask = await subjectMask(flatten(app.doc));
+    if (!mask) return;
+    app.history.push('Sélectionner l\'arrière-plan', { keepPending: true });
+    app.doc.selection = invertSelection(app.doc, mask);
+    app.invalidate();
+    app.emit('selection');
+  }, '', hasDoc);
+  def('ai.removeBg', 'Supprimer l\'arrière-plan', async () => {
+    const l = active();
+    if (!app.canEdit(l)) return;
+    const mask = await subjectMask(layerPixels(app.doc, l));
+    if (!mask) return;
+    layerOp('Supprimer l\'arrière-plan', (doc) => {
+      if (l.mask) {
+        const m = cloneCanvas(l.mask);
+        const ctx = m.getContext('2d');
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.drawImage(mask, 0, 0);
+        l.mask = m;
+      } else l.mask = cloneCanvas(mask);
+      l.maskEnabled = true;
+      doc.editMask = false;
+    });
+    toast('Arrière-plan supprimé (masque modifiable : peignez en blanc pour récupérer)', 3500);
+  }, '', hasDoc);
+  def('ai.replaceBg', 'Remplacer l\'arrière-plan…', async () => {
+    const l = active();
+    if (!app.canEdit(l)) return;
+    const res = await formDialog({
+      title: 'Remplacer l\'arrière-plan', okLabel: 'Appliquer',
+      fields: [
+        { key: 'type', label: 'Nouvel arrière-plan', type: 'select', options: [['color', 'Couleur unie'], ['gradient', 'Dégradé'], ['blur', 'Photo floutée'], ['none', 'Transparent']] },
+        { key: 'color', label: 'Couleur', type: 'color', when: (v) => v.type === 'color' || v.type === 'gradient' },
+        { key: 'color2', label: 'Seconde couleur', type: 'color', when: (v) => v.type === 'gradient' },
+      ],
+      values: { type: 'color', color: '#f2f2f5', color2: '#7b5cff' }, rebuildOn: ['type'],
+    });
+    if (!res) return;
+    const src = layerPixels(app.doc, l);
+    const mask = await subjectMask(src);
+    if (!mask) return;
+    const doc = app.doc;
+    const bg = createCanvas(doc.width, doc.height);
+    const bctx = bg.getContext('2d');
+    if (res.type === 'color') {
+      bctx.fillStyle = res.color;
+      bctx.fillRect(0, 0, bg.width, bg.height);
+    } else if (res.type === 'gradient') {
+      const g = bctx.createLinearGradient(0, 0, bg.width, bg.height);
+      g.addColorStop(0, res.color);
+      g.addColorStop(1, res.color2);
+      bctx.fillStyle = g;
+      bctx.fillRect(0, 0, bg.width, bg.height);
+    } else if (res.type === 'blur') {
+      await busy(() => {
+        const small = makeProxy(src, 600_000);
+        const blurred = canvasFromData(gaussianBlur(getData(small.canvas), 18 * small.scale + 4));
+        bctx.drawImage(blurred, 0, 0, bg.width, bg.height);
+      }, 'Flou…');
+    }
+    layerOp('Remplacer l\'arrière-plan', (d) => {
+      l.mask = l.mask ? (() => {
+        const m = cloneCanvas(l.mask);
+        const ctx = m.getContext('2d');
+        ctx.globalCompositeOperation = 'destination-in';
+        ctx.drawImage(mask, 0, 0);
+        return m;
+      })() : cloneCanvas(mask);
+      l.maskEnabled = true;
+      if (res.type !== 'none') {
+        const i = d.layers.indexOf(l);
+        const nl = d.addLayer({ canvas: bg, name: 'Nouvel arrière-plan' }, i);
+        void nl;
+        d.activeId = l.id;
+      }
+    });
+  }, '', hasDoc);
+  def('ai.portrait', 'Flou d\'arrière-plan (portrait)…', async () => {
+    const l = active();
+    if (!app.canEdit(l)) return;
+    const mask = await subjectMask(layerPixels(app.doc, l));
+    if (!mask) return;
+    const t = app.target();
+    const proxy = makeProxy(t.canvas, 900_000);
+    const smallMask = resizeCanvas(mask, proxy.canvas.width, proxy.canvas.height);
+    const srcData = getData(proxy.canvas);
+    const render = (v, src, m, scale) => {
+      const blurred = canvasFromData(gaussianBlur(src, Math.max(0.5, v.radius * scale)));
+      const subject = createCanvas(m.width, m.height);
+      const sc = subject.getContext('2d');
+      sc.drawImage(canvasFromData(src), 0, 0);
+      sc.globalCompositeOperation = 'destination-in';
+      sc.drawImage(m, 0, 0);
+      const out = createCanvas(m.width, m.height);
+      const oc = out.getContext('2d');
+      oc.drawImage(blurred, 0, 0);
+      if (v.dim) {
+        oc.fillStyle = `rgba(0,0,0,${v.dim / 100})`;
+        oc.fillRect(0, 0, out.width, out.height);
+      }
+      oc.drawImage(subject, 0, 0);
+      return out;
+    };
+    let pending = false, latest = { radius: 14, dim: 0 };
+    const preview = () => {
+      if (pending) return;
+      pending = true;
+      requestAnimationFrame(() => setTimeout(() => {
+        pending = false;
+        app.setPreview({ layerId: t.layer.id, canvas: render(latest, srcData, smallMask, proxy.scale) });
+      }));
+    };
+    preview();
+    const res = await formDialog({
+      title: 'Flou d\'arrière-plan (portrait)', preview: true, okLabel: 'Appliquer',
+      fields: [{ key: 'radius', label: 'Intensité du flou', type: 'range', min: 1, max: 80, unit: 'px' }, { key: 'dim', label: 'Assombrir l\'arrière-plan', type: 'range', min: 0, max: 80, unit: '%' }],
+      values: latest,
+      onChange: (v) => {
+        latest = { ...v };
+        preview();
+      },
+    });
+    app.setPreview(null);
+    if (!res) return;
+    await busy(() => app.applyToTarget('Flou d\'arrière-plan', (c) => render(res, getData(c), mask, 1)), 'Flou d\'arrière-plan…');
+  }, '', hasDoc);
+  def('ai.contentFill', 'Remplissage d\'après le contenu', async () => {
+    if (!hasSel()) return toast('Sélectionnez d\'abord la zone à faire disparaître');
+    if (!app.canEdit()) return;
+    const t = app.target();
+    const sel = app.doc.selection;
+    const out = await busy(() => contentAwareFill(t.canvas, sel), 'Remplissage intelligent…');
+    if (!out) return;
+    app.history.push('Remplissage d\'après le contenu');
+    app.setTargetCanvas(t, out);
+    app.doc.selection = null;
+    app.invalidate(true);
+    toast('Zone reconstruite ✨', 1500);
+  }, 'Maj+Suppr', hasSel);
+
   // Calque
   def('layer.new', 'Nouveau calque', () => layerOp('Nouveau calque', (doc) => doc.addLayer({})), 'Ctrl+Maj+N', hasDoc);
   def('layer.newFill', 'Nouveau calque de couleur', () => layerOp('Calque de couleur', (doc) => {
@@ -689,10 +853,9 @@ export function createActions(app, ui) {
   // Sélection
   const setSel = (label, fn) => {
     if (!hasDoc()) return;
-    app.flushPending();
     const next = fn(app.doc);
     if (next === undefined) return;
-    app.history.push(label);
+    app.history.push(label, { keepPending: true });
     app.doc.selection = next;
     app.invalidate();
     app.emit('selection');
@@ -799,15 +962,16 @@ export function createActions(app, ui) {
   function menus() {
     return [
       { label: 'Fichier', items: () => [item('file.new'), item('file.open'), item('file.camera'), item('file.openLayer'), sep, item('file.save'), item('file.export'), item('file.quickExport'), sep, item('file.close')] },
-      { label: 'Édition', items: () => [item('edit.undo'), item('edit.redo'), sep, item('edit.cut'), item('edit.copy'), item('edit.copyMerged'), item('edit.paste'), item('edit.clear'), sep, item('edit.fill'), item('edit.fillPrimary'), item('edit.stroke'), sep, item('edit.transform'), item('edit.flipLayerH'), item('edit.flipLayerV')] },
+      { label: 'Édition', items: () => [item('edit.undo'), item('edit.redo'), sep, item('edit.cut'), item('edit.copy'), item('edit.copyMerged'), item('edit.paste'), item('edit.clear'), sep, item('edit.fill'), item('ai.contentFill'), item('edit.fillPrimary'), item('edit.stroke'), sep, item('edit.transform'), item('edit.flipLayerH'), item('edit.flipLayerV')] },
       { label: 'Image', items: () => [
         { label: 'Réglages', submenu: () => FILTERS.filter((f) => f.cat === 'Réglages').map((f) => item(`filter.${f.id}`)) },
         item('image.autoTone'), item('image.autoContrast'), item('image.autoColor'), sep,
+        { head: 'Intelligence artificielle' }, item('ai.removeBg'), item('ai.replaceBg'), item('ai.portrait'), item('ai.contentFill'), sep,
         item('image.size'), item('image.canvas'), sep,
         { label: 'Rotation de l\'image', submenu: () => [item('image.rotCW'), item('image.rotCCW'), item('image.rot180'), item('image.rotFree'), sep, item('image.flipH'), item('image.flipV')] },
         item('image.crop'), item('image.cropSel'), item('image.trim')] },
       { label: 'Calque', items: layerMenu },
-      { label: 'Sélection', items: () => [item('sel.all'), item('sel.none'), item('sel.invert'), sep, item('sel.colorRange'), item('sel.layer'), sep, item('sel.feather'), item('sel.grow'), item('sel.shrink'), sep, item('sel.hide')] },
+      { label: 'Sélection', items: () => [item('sel.all'), item('sel.none'), item('sel.invert'), sep, item('ai.selectSubject'), item('ai.selectBackground'), sep, item('sel.colorRange'), item('sel.layer'), sep, item('sel.feather'), item('sel.grow'), item('sel.shrink'), sep, item('sel.hide')] },
       { label: 'Filtre', items: () => [item('filter.last'), sep, ...FILTER_CATEGORIES.map((cat) => ({ label: cat, submenu: () => FILTERS.filter((f) => f.cat === cat).map((f) => item(`filter.${f.id}`)) }))] },
       { label: 'Affichage', items: () => [item('view.zoomIn'), item('view.zoomOut'), item('view.fit'), item('view.actual'), sep, item('view.grid', { checked: app.view.showGrid }), item('view.pixelGrid', { checked: app.view.showPixelGrid }), item('view.compare'), sep, item('view.panels'), item('view.fullscreen')] },
       { label: 'Aide', items: () => [item('help.shortcuts'), item('help.about')] },

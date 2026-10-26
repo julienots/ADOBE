@@ -464,6 +464,13 @@ export function developPanel(app, session) {
         return cb;
       })(), 'Noir & blanc'));
     root.append(top);
+    const sel = !!app.doc.selection;
+    root.append(el('div', { class: 'row', style: { marginBottom: '6px', fontSize: '12px', color: 'var(--muted)' } }, 'Appliquer à :',
+      el('div', { class: 'seg' },
+        el('button', { class: sel ? '' : 'on', onclick: () => app.actions.run('sel.none') }, 'Tout'),
+        el('button', { onclick: () => app.actions.run('ai.selectSubject') }, '✨ Sujet'),
+        el('button', { onclick: () => app.actions.run('ai.selectBackground') }, '✨ Arrière-plan'),
+        sel ? el('button', { class: 'on' }, 'Sélection') : null)));
 
     root.append(section('Lumière', el('div', {},
       slider('exposure', 'Exposition', -5, 5, 0.01, { track: TRACKS.exposure }),
@@ -518,6 +525,10 @@ export function developPanel(app, session) {
   };
 
   app.on('develop-reset', render);
+  app.on('selection', () => {
+    if (session.active) session.update();
+    render();
+  });
   app.on('document', render);
   app.on('document-restored', render);
   app.on('active-layer', () => {
@@ -774,6 +785,11 @@ export function looksPanel(app, session) {
 
 export function filtersPanel(app, actions) {
   const root = el('div');
+  const aiList = el('div', { class: 'filter-list' });
+  for (const [id, label] of [['ai.selectSubject', '✨ Sélectionner le sujet'], ['ai.removeBg', '✨ Supprimer l\'arrière-plan'], ['ai.replaceBg', '✨ Remplacer l\'arrière-plan'], ['ai.portrait', '✨ Flou portrait'], ['ai.contentFill', '✨ Remplissage intelligent'], ['ai.selectBackground', '✨ Sélectionner l\'arrière-plan']]) {
+    aiList.append(el('button', { class: 'filter-item ai', onclick: () => actions.run(id) }, label));
+  }
+  root.append(el('div', { class: 'filter-cat' }, el('h4', {}, 'Intelligence artificielle (sur l\'appareil)'), aiList));
   const cats = ['Réglages', ...FILTER_CATEGORIES];
   for (const cat of cats) {
     const list = el('div', { class: 'filter-list' });
