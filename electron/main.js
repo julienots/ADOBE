@@ -20,7 +20,7 @@ function createWindow() {
     minHeight: 600,
     backgroundColor: '#000000',
     title: 'Prisme — SuperEssence Studio',
-    icon: path.join(__dirname, '..', 'build', 'icon.png'),
+    icon: path.join(WWW, 'icons', 'icon-256.png'),
     autoHideMenuBar: true,
     show: false,
     webPreferences: { contextIsolation: true, sandbox: true, spellcheck: false },

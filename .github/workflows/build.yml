@@ -35,8 +35,11 @@ jobs:
           npx cap sync android
 
       - name: Icônes et écran de démarrage
-        continue-on-error: true
-        run: npx @capacitor/assets generate --android --iconBackgroundColor '#000000' --iconBackgroundColorDark '#000000' --splashBackgroundColor '#000000' --splashBackgroundColorDark '#000000'
+        run: |
+          npx @capacitor/assets generate --android --iconBackgroundColor '#0b0b12' --iconBackgroundColorDark '#0b0b12' --splashBackgroundColor '#000000' --splashBackgroundColorDark '#000000'
+          # Vérifie que l'icône adaptative (Android 8+) vient bien du logo Prisme
+          ls android/app/src/main/res/mipmap-xxxhdpi/
+          test -f android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_background.png
 
       - name: Compiler l'APK
         working-directory: android
