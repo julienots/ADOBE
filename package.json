@@ -1,0 +1,43 @@
+{
+  "name": "prisme-photo",
+  "productName": "Prisme",
+  "version": "1.0.0",
+  "description": "Prisme — éditeur photo complet par SuperEssence Studio",
+  "author": "SuperEssence Studio",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "serve": "npx --yes http-server www -p 8080 -c-1",
+    "dist:win": "electron-builder --win nsis portable --publish never"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "com.superessence.prisme",
+    "productName": "Prisme",
+    "copyright": "© SuperEssence Studio",
+    "directories": { "output": "dist", "buildResources": "build" },
+    "files": ["electron/**", "www/**", "package.json"],
+    "fileAssociations": [
+      { "ext": "prisme", "name": "Projet Prisme", "description": "Projet Prisme", "role": "Editor" }
+    ],
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Prisme",
+      "artifactName": "Prisme-Setup-${version}.${ext}"
+    },
+    "portable": { "artifactName": "Prisme-Portable-${version}.${ext}" }
+  }
+}

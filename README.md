@@ -1,77 +1,96 @@
-# ORB RUSH 🎮
+# Prisme Photo
 
-Petit jeu 3D sous Unity, généré « au pif » : tu es une boule lumineuse sur une arène flottante
-générée aléatoirement. Ramasse toutes les orbes de la vague, évite les cubes rouges qui te
-pourchassent… et éjecte-les dans le vide d'un coup de dash pour des points bonus.
+**Éditeur photo complet pour Windows, Android et navigateur — une création SuperEssence Studio.**
 
-## Lancer le jeu
+Prisme réunit dans une seule application la retouche par calques (façon Photoshop) et le
+développement photo (façon Lightroom). Il fonctionne hors ligne : les photos ne quittent
+jamais l'appareil.
 
-1. Ouvre ce dossier avec **Unity Hub** (testé pour Unity 2022.3 LTS, compatible Unity 6).
-2. À la première ouverture, la scène `Assets/Scenes/Main.unity` est créée automatiquement.
-3. Appuie sur **Play** ▶️ — tout le jeu (arène, joueur, caméra, interface) se construit par code.
+## Télécharger l'application
 
-> Si Unity signale que l'ancien Input Manager est désactivé : *Edit → Project Settings → Player →
-> Active Input Handling* → **Both** (ou *Input Manager (Old)*).
+Chaque push déclenche le workflow **« Compiler Prisme (Android + Windows) »**
+(`.github/workflows/build.yml`). Aucune licence ni aucun secret n'est nécessaire.
 
-## Obtenir l'APK Android
+1. Sur GitHub, ouvrir l'onglet **Actions** puis la dernière exécution réussie.
+2. En bas de la page, dans **Artifacts** :
+   - **Prisme-Android-APK** → `Prisme.apk` à installer sur le téléphone
+     (autoriser « Installer des applications inconnues »).
+   - **Prisme-Windows** → `Prisme-Setup-1.0.0.exe` (installateur) ou
+     `Prisme-Portable-1.0.0.exe` (sans installation).
+     Windows SmartScreen peut afficher un avertissement tant que l'application
+     n'est pas signée : *Informations complémentaires → Exécuter quand même*.
+   - **Prisme-Web** → le dossier `www/` à héberger sur n'importe quel serveur (PWA installable).
 
-### Option 1 : compilation automatique sur GitHub (sans installer Unity)
+On peut aussi relancer la compilation à la main : *Actions → Compiler Prisme → Run workflow*.
 
-Le workflow `.github/workflows/build-android.yml` compile l'APK à chaque push. Il a besoin
-d'une licence Unity (la licence Personal gratuite suffit), à ajouter **une seule fois** dans
-*GitHub → Settings → Secrets and variables → Actions → New repository secret* :
+## Lancer en local
 
-| Secret | Valeur |
-|---|---|
-| `UNITY_EMAIL` | l'e-mail de ton compte Unity |
-| `UNITY_PASSWORD` | son mot de passe |
-| `UNITY_LICENSE` | le contenu du fichier `Unity_lic.ulf` |
+```bash
+npm run serve          # version web sur http://localhost:8080
+npm install && npm start   # version Windows/Mac/Linux (Electron)
+```
 
-Le fichier `.ulf` se trouve sur un PC où Unity Hub est connecté et la licence Personal activée :
-- Windows : `C:\ProgramData\Unity\Unity_lic.ulf`
-- macOS : `/Library/Application Support/Unity/Unity_lic.ulf`
-- Linux : `~/.local/share/unity3d/Unity/Unity_lic.ulf`
+## Fonctionnalités
 
-(Guide détaillé : https://game.ci/docs/github/activation)
+**Calques** : calques illimités, 16 modes de fusion, opacité, verrouillage, glisser-déposer pour
+réordonner, masques de fusion (peindre, inverser, appliquer, depuis la sélection), effets
+(ombre portée, lueur externe, contour), fusion vers le bas / des visibles / aplatir, calques texte ré-éditables.
 
-Ensuite : onglet **Actions → Build APK Android → Run workflow**. À la fin (~20-30 min la première
-fois), télécharge l'artefact **OrbRush-apk** : il contient `OrbRush.apk`, à copier sur le
-téléphone et à installer (autoriser les « sources inconnues »).
+**Réglages photo (développement)** : exposition, contraste, hautes lumières, ombres, blancs,
+noirs, température, teinte, vibrance, saturation, texture, clarté, correction du voile, courbe des
+tonalités RVB/R/V/B avec préréglages, TSL sur 8 couleurs, étalonnage ombres / tons moyens /
+hautes lumières, netteté, réduction du bruit (luminance + couleur), vignetage, grain, délavé,
+noir & blanc, réglage **Auto**. Aperçu en direct, appliqué au calque ou à la sélection.
 
-### Option 2 : depuis Unity sur ton PC
+**23 looks** : Cinéma, Teal & Orange, Vintage, Pellicule, N&B contrasté, Heure dorée, Cyberpunk… avec intensité réglable.
 
-1. Dans Unity Hub, installe le module **Android Build Support** (avec OpenJDK et SDK/NDK).
-2. *File → Build Settings → Android → Switch Platform*, puis **Build**.
+**49 filtres et réglages** : niveaux, luminosité/contraste, teinte/saturation, balance des couleurs,
+mélangeur de couches, filtre photo, courbe de transfert de dégradé, noir et blanc par couleur,
+égalisation, niveaux / contraste automatiques ; flous gaussien, de mouvement, radial, rotatif,
+tilt-shift, bokeh ; accentuation, passe-haut ; bruit, réduction du bruit, médiane, anti-poussière ;
+pixellisation, demi-teinte, estampage, contours, peinture à l'huile, croquis, bande dessinée,
+lueur Orton, glitch, aberration chromatique, fuite de lumière, bichromie, solarisation ;
+tourbillon, sphérisation, ondulation, pincement, coordonnées polaires.
 
-## Contrôles mobiles
+**25 outils** : déplacement, transformation libre (échelle, rotation, symétrie), recadrage
+(13 formats, redressement, grilles des tiers / nombre d'or), rectangle et ellipse de sélection,
+lasso, lasso polygonal, sélection rapide, baguette magique, pinceau (dureté, flux, lissage,
+pression du stylet, modes de fusion), crayon, gomme, pot de peinture, dégradé (5 types,
+11 palettes), pipette, correcteur localisé, tampon de duplication, doigt, densité −/+ et éponge,
+goutte d'eau / netteté, yeux rouges, texte (police, contour, ombre, fond, rotation…),
+10 formes, main, zoom.
 
-Joystick virtuel à gauche de l'écran, boutons **SAUT** et **DASH** à droite, glisser le doigt
-sur la droite pour tourner la caméra. Bouton retour Android = retour au menu.
+**Sélection** : tout, inverser, contour progressif, étendre / contracter, plage de couleurs,
+depuis les pixels d'un calque, ajouter / soustraire / intersection.
 
-## Contrôles clavier
+**Image** : taille de l'image, taille de la zone de travail avec ancrage, rotations,
+symétries, recadrage sur la sélection, rognage automatique.
 
-| Touche | Action |
-|---|---|
-| WASD / Flèches | Rouler |
-| Espace | Sauter |
-| Shift / Clic gauche | Dash (éjecte les cubes) |
-| Clic droit + souris, Q / E | Tourner la caméra |
-| R (menu / game over) | Nouvelle arène aléatoire |
-| Échap | Retour au menu |
+**Fichiers** : ouverture JPEG/PNG/WebP/GIF/AVIF/BMP, lecture EXIF, glisser-déposer,
+coller depuis le presse-papier, appareil photo sur mobile, export JPEG/PNG/WebP/AVIF
+(qualité, taille, aperçu du poids), partage mobile, projets `.prisme` multi-calques,
+**sauvegarde automatique** de la session.
 
-## Règles
+**Interface** : écran d'ouverture SuperEssence Studio, thème sombre, menus complets,
+raccourcis clavier façon Photoshop (Aide → Raccourcis), historique de 60 étapes avec
+panneau, histogramme, avant / après, interface tactile dédiée sur mobile (pincer pour
+zoomer, panneaux coulissants).
 
-- Orbe bleue : **10 pts** · Orbe dorée (sur les plateformes, il faut sauter) : **50 pts**
-- Vague terminée : **100 × vague**
-- Cube éjecté de l'arène : **50 × vague**
-- 3 vies : un cube qui te touche (hors dash) ou une chute dans le vide en coûte une.
-- Chaque vague ajoute plus d'orbes et des cubes plus nombreux et plus rapides.
+## Structure
 
-## Code
+```
+www/                 Application (HTML/CSS/JavaScript, sans dépendance)
+  js/app.js          État global, calque cible, rendu
+  js/doc.js          Document, calques, masques, composition
+  js/develop.js      Moteur de développement photo + looks
+  js/filters.js      Filtres et réglages
+  js/tools/          Outils (peinture, sélection, transformation…)
+  js/panels.js       Panneaux Réglages, Looks, Calques, Filtres, Historique, Infos
+  js/actions.js      Commandes, menus, raccourcis
+  js/io.js           Ouverture, EXIF, export, projets, sauvegarde automatique
+electron/main.js     Application Windows
+capacitor.config.json  Application Android
+assets/, build/      Icônes et logos (logo « P » de Prisme, logo SuperEssence)
+```
 
-Tout est dans `Assets/Scripts/` :
-
-- `GameBootstrap.cs` – démarre le jeu automatiquement dans n'importe quelle scène
-- `GameManager.cs` – génération de l'arène, vagues, score, vies, interface
-- `PlayerController.cs` – physique de la boule (déplacement, saut, dash)
-- `Enemy.cs`, `Orb.cs`, `Debris.cs`, `CameraFollow.cs` – le reste
+© SuperEssence Studio. Tous droits réservés.

@@ -1,0 +1,10 @@
+{
+  "appId": "com.superessence.prisme",
+  "appName": "Prisme",
+  "webDir": "www",
+  "backgroundColor": "#000000",
+  "android": {
+    "backgroundColor": "#000000",
+    "allowMixedContent": false
+  }
+}
