@@ -85,3 +85,35 @@ jobs:
         with:
           name: Prisme-Web
           path: www/
+
+  release:
+    name: Publier les fichiers (Release)
+    needs: [android, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+
+      - name: Préparer les fichiers
+        run: |
+          mkdir -p files
+          cp out/Prisme-Android-APK/Prisme.apk files/Prisme.apk
+          cp out/Prisme-Windows/*.exe files/
+          ls -la files
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          name: Prisme 1.0.${{ github.run_number }}
+          make_latest: true
+          body: |
+            **Prisme Photo** — une création SuperEssence Studio.
+
+            - 📱 **Android** : `Prisme.apk` (autoriser « Installer des applications inconnues »)
+            - 💻 **Windows** : `Prisme-Setup-1.0.0.exe` (installateur) ou `Prisme-Portable-1.0.0.exe` (sans installation).
+              Si Windows SmartScreen s'affiche : *Informations complémentaires → Exécuter quand même*.
+          files: files/*
