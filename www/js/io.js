@@ -4,6 +4,7 @@ import { Doc } from './doc.js';
 import { createCanvas, canvasToBlob, loadImage, blobToDataURL, resizeCanvas, formatBytes, isCapacitor, isMobileLayout, el, debounce } from './util.js';
 import { flatten } from './doc.js';
 import { toast, busy, modal, buildFields } from './ui.js';
+import { fileKind, decodeSpecial, readPSD, writePSD, encodeTIFF } from './formats.js';
 
 const MAX_PIXELS = () => (isMobileLayout() ? 24_000_000 : 60_000_000);
 
@@ -11,7 +12,9 @@ const MAX_PIXELS = () => (isMobileLayout() ? 24_000_000 : 60_000_000);
 
 export async function decodeImage(file) {
   let source;
-  try {
+  const special = file.name && fileKind(file) !== 'image' ? await decodeSpecial(file) : null;
+  if (special) source = special;
+  else try {
     source = await createImageBitmap(file, { imageOrientation: 'from-image' });
   } catch {
     const url = URL.createObjectURL(file);
@@ -24,7 +27,7 @@ export async function decodeImage(file) {
   let w = source.width, h = source.height;
   let canvas = createCanvas(w, h);
   canvas.getContext('2d').drawImage(source, 0, 0);
-  source.close?.();
+  if (source !== canvas) source.close?.();
   let downscaled = false;
   if (w * h > MAX_PIXELS()) {
     const k = Math.sqrt(MAX_PIXELS() / (w * h));
@@ -44,6 +47,13 @@ const EXIF_TAGS = {
 };
 
 export async function readExif(file) {
+  const kind = file.name ? fileKind(file) : 'image';
+  if (kind === 'raw' || kind === 'tiff') {
+    // Fichiers RAW / TIFF : l'en-tête est directement une structure TIFF
+    const v = new DataView(await file.slice(0, 512 * 1024).arrayBuffer());
+    const bo = v.byteLength > 8 ? v.getUint16(0) : 0;
+    return bo === 0x4949 || bo === 0x4d4d ? parseTiff(v, 0) : null;
+  }
   if (!/jpe?g/i.test(file.type) && !/\.jpe?g$/i.test(file.name || '')) return null;
   const buf = await file.slice(0, 256 * 1024).arrayBuffer();
   const v = new DataView(buf);
@@ -106,9 +116,11 @@ function parseTiff(v, start) {
 
 // ---------- Ouverture ----------
 
-export async function openImageFile(app, file, mode = 'replace') {
-  if (/\.(prisme|json)$/i.test(file.name)) return loadProjectFile(app, file);
-  if (file.type && !file.type.startsWith('image/')) return toast(`Format non pris en charge : ${file.name}`);
+export async function openImageFile(app, file, mode = 'replace', handle = null) {
+  if (/\.(prisme|json)$/i.test(file.name)) return loadProjectFile(app, file, handle);
+  const kind = fileKind(file);
+  if (kind === 'psd') return openPSD(app, file, mode);
+  if (kind === 'image' && file.type && !file.type.startsWith('image/')) return toast(`Format non pris en charge : ${file.name}`);
   try {
     await busy(async () => {
       const { canvas, downscaled, original } = await decodeImage(file);
@@ -122,10 +134,28 @@ export async function openImageFile(app, file, mode = 'replace') {
         app.setDocument(doc);
       }
       if (downscaled) toast(`Image réduite à ${canvas.width}×${canvas.height} pour la mémoire de l'appareil`, 3500);
-    }, 'Ouverture…');
+      else if (kind === 'raw') toast(`RAW ouvert (aperçu développé par l'appareil, ${canvas.width}×${canvas.height})`, 3500);
+    }, kind === 'heic' ? 'Décodage HEIC…' : kind === 'raw' ? 'Lecture du RAW…' : 'Ouverture…');
   } catch (e) {
     console.error(e);
-    toast(/heic|heif/i.test(file.type + file.name) ? 'HEIC non pris en charge par ce navigateur : convertissez en JPEG' : `Impossible d'ouvrir ${file.name}`);
+    toast(`Impossible d'ouvrir ${file.name}${e?.message ? ` : ${e.message}` : ''}`, 3500);
+  }
+}
+
+// PSD : ouverture multi-calques, ou import aplati comme calque dans le document courant.
+async function openPSD(app, file, mode) {
+  try {
+    await busy(async () => {
+      const doc = await readPSD(file);
+      if (mode === 'layer' && app.doc) placeAsLayer(app, flatten(doc), doc.name);
+      else {
+        app.setDocument(doc, 'Ouverture PSD');
+        toast(`PSD ouvert : ${doc.layers.length} calque${doc.layers.length > 1 ? 's' : ''}`, 2000);
+      }
+    }, 'Lecture du PSD…');
+  } catch (e) {
+    console.error(e);
+    toast(`PSD illisible : ${e.message || e}`, 3500);
   }
 }
 
@@ -148,10 +178,19 @@ export function supportedFormats() {
   const ok = (t) => test.toDataURL(t).startsWith(`data:${t}`);
   const f = [['image/jpeg', 'JPEG'], ['image/png', 'PNG'], ['image/webp', 'WebP']];
   if (ok('image/avif')) f.push(['image/avif', 'AVIF']);
-  return f.filter(([t]) => t === 'image/png' || ok(t));
+  return [...f.filter(([t]) => t === 'image/png' || ok(t)), ['image/tiff', 'TIFF'], ['image/vnd.adobe.photoshop', 'PSD (Photoshop, calques)']];
 }
 
-const EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/avif': 'avif' };
+const EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/avif': 'avif', 'image/tiff': 'tif', 'image/vnd.adobe.photoshop': 'psd' };
+const LOSSY = new Set(['image/jpeg', 'image/webp', 'image/avif']);
+const IS_PSD = (f) => f === 'image/vnd.adobe.photoshop';
+
+// Encode l'image finale dans le format choisi (TIFF et PSD via les bibliothèques embarquées).
+async function encodeExport(doc, out, format, quality) {
+  if (format === 'image/tiff') return encodeTIFF(out);
+  if (IS_PSD(format)) return writePSD(doc, out);
+  return canvasToBlob(out, format, quality);
+}
 
 export async function exportDialog(app) {
   const doc = app.doc;
@@ -169,15 +208,19 @@ export async function exportDialog(app) {
   preview.height = pv.height;
   preview.getContext('2d').drawImage(pv, 0, 0);
   const estimate = debounce(async () => {
+    if (IS_PSD(vals.format)) {
+      info.textContent = `${doc.width} × ${doc.height} px · ${doc.layers.length} calque(s), masques et modes de fusion conservés`;
+      return;
+    }
     const out = renderExport(flat, vals);
-    const blob = await canvasToBlob(out, vals.format, vals.quality / 100);
+    const blob = await encodeExport(doc, out, vals.format, vals.quality / 100);
     info.textContent = `${out.width} × ${out.height} px · environ ${formatBytes(blob.size)}`;
   }, 250);
   const fields = [
     { key: 'name', label: 'Nom du fichier', type: 'text' },
     { key: 'format', label: 'Format', type: 'select', options: supportedFormats() },
-    { key: 'quality', label: 'Qualité', type: 'range', min: 10, max: 100, unit: '%', when: (v) => v.format !== 'image/png' },
-    { key: 'scale', label: 'Taille', type: 'range', min: 5, max: 400, unit: '%' },
+    { key: 'quality', label: 'Qualité', type: 'range', min: 10, max: 100, unit: '%', when: (v) => LOSSY.has(v.format) },
+    { key: 'scale', label: 'Taille', type: 'range', min: 5, max: 400, unit: '%', when: (v) => !IS_PSD(v.format) },
     { key: 'background', label: 'Fond (JPEG)', type: 'color', when: (v) => v.format === 'image/jpeg' },
   ];
   const holder = el('div');
@@ -198,8 +241,8 @@ export async function exportDialog(app) {
   if (!action) return;
   localStorage.setItem('prisme.exportFormat', vals.format);
   await busy(async () => {
-    const out = renderExport(flat, vals);
-    const blob = await canvasToBlob(out, vals.format, vals.quality / 100);
+    const out = IS_PSD(vals.format) ? flat : renderExport(flat, vals);
+    const blob = await encodeExport(doc, out, vals.format, vals.quality / 100);
     const filename = `${(vals.name || 'image').replace(/[\\/:*?"<>|]+/g, '_')}.${EXT[vals.format]}`;
     await saveBlob(blob, filename, action === 'share');
     app.dirty = false;
@@ -307,23 +350,51 @@ export async function deserializeDoc(data) {
   return doc;
 }
 
-export async function saveProject(app) {
+// API File System Access (Chrome, Edge, application Windows) : « Enregistrer » réécrit le même
+// fichier sur le disque, « Enregistrer sous » ouvre la boîte de dialogue native.
+export const canSaveInPlace = () => typeof window.showSaveFilePicker === 'function' && !isCapacitor();
+
+export async function saveProject(app, saveAs = false) {
   if (!app.doc) return;
   app.flushPending();
+  const doc = app.doc;
+  const filename = `${doc.name || 'projet'}.prisme`;
+  let handle = !saveAs && doc.fileHandle;
+  if (canSaveInPlace() && !handle) {
+    try {
+      handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{ description: 'Projet Prisme', accept: { 'application/json': ['.prisme'] } }],
+      });
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+      handle = null;
+    }
+  }
   await busy(async () => {
-    const data = await serializeDoc(app.doc);
+    const data = await serializeDoc(doc);
     const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-    await saveBlob(blob, `${app.doc.name || 'projet'}.prisme`);
+    if (handle) {
+      const w = await handle.createWritable();
+      await w.write(blob);
+      await w.close();
+      doc.fileHandle = handle;
+      doc.name = handle.name.replace(/\.prisme$/i, '') || doc.name;
+      toast(`Enregistré : ${handle.name}`, 1500);
+    } else await saveBlob(blob, filename);
     app.dirty = false;
+    app.emit('document-saved');
   }, 'Enregistrement du projet…');
 }
 
-export async function loadProjectFile(app, file) {
+export async function loadProjectFile(app, file, handle = null) {
   try {
     await busy(async () => {
       const data = JSON.parse(await file.text());
       if (data.app !== 'Prisme') throw new Error('Fichier projet invalide');
-      app.setDocument(await deserializeDoc(data), 'Ouverture du projet');
+      const doc = await deserializeDoc(data);
+      if (handle) doc.fileHandle = handle;
+      app.setDocument(doc, 'Ouverture du projet');
     }, 'Ouverture du projet…');
   } catch (e) {
     console.error(e);

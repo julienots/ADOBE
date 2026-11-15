@@ -400,3 +400,17 @@ input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius
   .splash-studio { animation-duration: .8s; }
   .splash-app { animation-delay: .8s; animation-duration: .3s; }
 }
+
+/* ---------- Palette de commandes (Ctrl+K) ---------- */
+.palette-back { position: fixed; inset: 0; z-index: 90; background: rgba(5,5,10,.5); display: flex; justify-content: center; align-items: flex-start; padding: max(10vh, calc(var(--safe-t) + 16px)) 16px 16px; animation: fade .12s; }
+.palette { width: min(620px, 100%); max-height: min(70vh, 560px); display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 24px 60px rgba(0,0,0,.55); overflow: hidden; }
+.palette > input { border: 0; border-bottom: 1px solid var(--border); background: transparent; color: var(--text); font: inherit; font-size: 16px; padding: 14px 16px; outline: none; }
+.palette-list { overflow-y: auto; padding: 6px; }
+.palette-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+.palette-item.active { background: var(--accent-soft); }
+.palette-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.palette-cat { color: var(--faint); font-size: 11px; }
+.palette-item kbd { font: inherit; font-size: 11px; color: var(--muted); background: var(--panel-3); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; white-space: nowrap; }
+.palette-empty { padding: 18px; text-align: center; color: var(--muted); font-size: 13px; }
+.palette-foot { border-top: 1px solid var(--border); padding: 8px 14px; color: var(--faint); font-size: 11px; }
+@media (max-width: 899px) { .palette-foot { display: none; } }

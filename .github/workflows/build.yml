@@ -3,7 +3,7 @@ name: Compiler Prisme (Android + Windows)
 on:
   workflow_dispatch:
   push:
-    branches: [main, master, ccr-2549c042-0i5zo3]
+    branches: [main, master, ccr-2549c042-0i5zo3, ccr-77216933-2e3s5f]
     tags: ['v*']
 
 jobs:
@@ -109,14 +109,18 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.${{ github.run_number }}
+          tag_name: v1.1.${{ github.run_number }}
           target_commitish: ${{ github.sha }}
-          name: Prisme 1.0.${{ github.run_number }}
+          name: Prisme 1.1.${{ github.run_number }}
           make_latest: true
           body: |
             **Prisme Photo** — une création SuperEssence Studio.
 
             - 📱 **Android** : `Prisme.apk` (autoriser « Installer des applications inconnues »)
-            - 💻 **Windows** : `Prisme-Setup-1.0.0.exe` (installateur) ou `Prisme-Portable-1.0.0.exe` (sans installation).
+            - 💻 **Windows** : `Prisme-Setup-1.1.0.exe` (installateur) ou `Prisme-Portable-1.1.0.exe` (sans installation).
               Si Windows SmartScreen s'affiche : *Informations complémentaires → Exécuter quand même*.
+
+            **Nouveautés 1.1** : rendu accéléré par le GPU (WebGL 2), ouverture et export PSD avec calques,
+            photos HEIC d'iPhone, fichiers RAW, TIFF, palette de commandes (Ctrl+K), enregistrement direct
+            sur le disque, ouverture des fichiers par double-clic dans l'application Windows.
           files: files/*

@@ -3,6 +3,7 @@
 
 import { clamp, smoothstep, rgbToHsl01, hslToRgb01 } from './util.js';
 import { blurChannel, curveLUT, isIdentityCurve, hash2, histogram, histPercentile, gaussianBlur } from './imaging.js';
+import { developPixelsGPU } from './gpu.js';
 
 export const HSL_BANDS = [
   ['red', 'Rouges', 0, '#e5484d'],
@@ -118,16 +119,26 @@ function hueToRgb(h) {
 /**
  * Applique les réglages à une ImageData et renvoie une nouvelle ImageData.
  * `scale` : rapport entre l'image traitée et l'image réelle (aperçu réduit) pour les rayons.
+ * `opts.gpu === false` force le moteur CPU.
  */
-export function develop(src, p, scale = 1) {
+export function develop(src, p, scale = 1, opts = {}) {
   const { width: w, height: h } = src;
   const sd = src.data;
-  const out = new ImageData(new Uint8ClampedArray(sd), w, h);
-  const od = out.data;
   const n = w * h;
 
   const tone = toneLUT(p);
   const toneIdentity = !p.contrast && !p.highlights && !p.shadows && !p.whites && !p.blacks && !p.fade;
+  const hslActive = HSL_BANDS.some(([k]) => p.hsl[k].h || p.hsl[k].s || p.hsl[k].l);
+  const hslBands = HSL_BANDS.map(([k, , center]) => ({ c: center / 360, ...p.hsl[k] }));
+
+  // Accélération GPU (WebGL 2) quand elle est disponible ; sinon passage CPU ci-dessous.
+  if (opts.gpu !== false) {
+    const gpuOut = developPixelsGPU(src, p, scale, { tone, toneIdentity, bands: hslBands, hslActive });
+    if (gpuOut) return finishDevelop(gpuOut, p, scale);
+  }
+
+  const out = new ImageData(new Uint8ClampedArray(sd), w, h);
+  const od = out.data;
   const expMul = Math.pow(2, p.exposure);
   const temp = p.temperature / 100, tint = p.tint / 100;
   const wbR = 1 + temp * 0.32 + tint * 0.12, wbG = 1 - tint * 0.25, wbB = 1 - temp * 0.32 + tint * 0.12;
@@ -141,9 +152,6 @@ export function develop(src, p, scale = 1) {
       anyCurve = true;
     }
   }
-
-  const hslActive = HSL_BANDS.some(([k]) => p.hsl[k].h || p.hsl[k].s || p.hsl[k].l);
-  const hslBands = HSL_BANDS.map(([k, , center]) => ({ c: center / 360, ...p.hsl[k] }));
 
   const g = p.grade;
   const gradeActive = g.shadows.s || g.midtones.s || g.highlights.s;
@@ -321,6 +329,11 @@ export function develop(src, p, scale = 1) {
     od[q + 2] = b * 255;
   }
 
+  return finishDevelop(out, p, scale);
+}
+
+// Étapes de voisinage (réduction du bruit, netteté), communes aux moteurs GPU et CPU.
+function finishDevelop(out, p, scale) {
   let result = out;
   if (p.noise || p.colorNoise) result = reduceNoise(result, p.noise / 100, p.colorNoise / 100, scale);
   if (p.sharpen) result = unsharp(result, p.sharpen / 100 * 1.5, Math.max(0.4, p.sharpenRadius * scale), 2);

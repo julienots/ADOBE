@@ -11,7 +11,10 @@ import {
   selectAll, invertSelection, featherSelection, growSelection, colorRangeSelection, selectionFromLayerAlpha, selectionBounds, selectionOutline,
 } from './selection.js';
 import { toast, busy, modal, formDialog, confirmDialog, buildFields, promptDialog } from './ui.js';
-import { openImageFile, exportDialog, saveProject, saveBlob, placeAsLayer, decodeImage } from './io.js';
+import { openImageFile, exportDialog, saveProject, saveBlob, placeAsLayer, decodeImage, canSaveInPlace } from './io.js';
+import { writePSD } from './formats.js';
+import { gpuEnabled, gpuInfo } from './gpu.js';
+import { openPalette } from './palette.js';
 import { loadPref, savePref } from './app.js';
 import { segmentSubject } from './ai.js';
 import { contentAwareFill } from './inpaint.js';
@@ -567,6 +570,14 @@ export function createActions(app, ui) {
   def('file.camera', 'Prendre une photo…', () => ui.pickFiles('replace', true));
   def('file.save', 'Enregistrer le projet (.prisme)', () => saveProject(app), 'Ctrl+S', hasDoc);
   def('file.export', 'Exporter l\'image…', () => exportDialog(app), 'Ctrl+Maj+S', hasDoc);
+  def('file.saveAs', 'Enregistrer le projet sous…', () => saveProject(app, true), 'Ctrl+Alt+Maj+S', () => hasDoc() && canSaveInPlace());
+  def('file.exportPSD', 'Exporter en PSD (Photoshop)…', async () => {
+    app.flushPending();
+    await busy(async () => {
+      const blob = await writePSD(app.doc, flatten(app.doc));
+      await saveBlob(blob, `${(app.doc.name || 'image').replace(/[\\/:*?"<>|]+/g, '_')}.psd`);
+    }, 'Écriture du PSD…');
+  }, '', hasDoc);
   def('file.quickExport', 'Export rapide JPEG', async () => {
     app.flushPending();
     const blob = await canvasToBlob(flatten(app.doc, '#ffffff'), 'image/jpeg', 0.92);
@@ -913,7 +924,16 @@ export function createActions(app, ui) {
     toast(app.showOriginal ? 'Affichage : AVANT (original)' : 'Affichage : APRÈS', 900);
   }, '\\', hasDoc);
 
+  def('view.gpu', 'Accélération GPU (WebGL 2)', () => {
+    const on = !gpuEnabled();
+    savePref('gpu', on);
+    app.develop?.render?.();
+    const info = gpuInfo();
+    toast(on ? (info ? `GPU activé : ${info.renderer}${info.software ? ' (émulé : peut être plus lent)' : ''}` : 'WebGL 2 indisponible sur cet appareil : moteur CPU') : 'GPU désactivé : moteur CPU', 2500);
+  });
+
   // Aide
+  def('help.palette', 'Rechercher une commande…', () => openPalette(app, { cmds, run }), 'Ctrl+K');
   def('help.shortcuts', 'Raccourcis clavier', () => shortcutsDialog(), 'F1');
   def('help.about', `À propos de ${APP_NAME}`, () => aboutDialog());
 
@@ -936,7 +956,7 @@ export function createActions(app, ui) {
         el('div', { style: { margin: '16px 0 6px', color: 'var(--muted)' } }, 'Une création'),
         el('img', { src: 'icons/superessence.png', alt: 'SuperEssence', style: { width: '220px', maxWidth: '80%' } }),
         el('div', { style: { color: '#ffcc1f', fontWeight: 800, letterSpacing: '4px', fontSize: '12px', marginTop: '4px' } }, 'S T U D I O'),
-        el('p', { class: 'hint', style: { marginTop: '16px' } }, `${Object.keys(app.tools).length} outils · ${FILTERS.length} filtres et réglages · calques, masques, effets, looks, export JPEG/PNG/WebP. Fonctionne hors ligne, vos photos restent sur votre appareil.`),
+        el('p', { class: 'hint', style: { marginTop: '16px' } }, `${Object.keys(app.tools).length} outils · ${FILTERS.length} filtres et réglages · calques, masques, effets, looks. Formats : JPEG, PNG, WebP, AVIF, TIFF, PSD, HEIC, RAW. Rendu ${gpuEnabled() ? 'accéléré par le GPU (WebGL 2)' : 'CPU'}. Fonctionne hors ligne, vos photos restent sur votre appareil.`),
         el('p', { class: 'hint' }, `© ${new Date().getFullYear()} SuperEssence Studio. Tous droits réservés.`)),
       buttons: [{ label: 'Fermer', primary: true, value: true }],
     });
@@ -961,7 +981,7 @@ export function createActions(app, ui) {
 
   function menus() {
     return [
-      { label: 'Fichier', items: () => [item('file.new'), item('file.open'), item('file.camera'), item('file.openLayer'), sep, item('file.save'), item('file.export'), item('file.quickExport'), sep, item('file.close')] },
+      { label: 'Fichier', items: () => [item('file.new'), item('file.open'), item('file.camera'), item('file.openLayer'), sep, item('file.save'), item('file.saveAs'), sep, item('file.export'), item('file.exportPSD'), item('file.quickExport'), sep, item('file.close')] },
       { label: 'Édition', items: () => [item('edit.undo'), item('edit.redo'), sep, item('edit.cut'), item('edit.copy'), item('edit.copyMerged'), item('edit.paste'), item('edit.clear'), sep, item('edit.fill'), item('ai.contentFill'), item('edit.fillPrimary'), item('edit.stroke'), sep, item('edit.transform'), item('edit.flipLayerH'), item('edit.flipLayerV')] },
       { label: 'Image', items: () => [
         { label: 'Réglages', submenu: () => FILTERS.filter((f) => f.cat === 'Réglages').map((f) => item(`filter.${f.id}`)) },
@@ -973,8 +993,8 @@ export function createActions(app, ui) {
       { label: 'Calque', items: layerMenu },
       { label: 'Sélection', items: () => [item('sel.all'), item('sel.none'), item('sel.invert'), sep, item('ai.selectSubject'), item('ai.selectBackground'), sep, item('sel.colorRange'), item('sel.layer'), sep, item('sel.feather'), item('sel.grow'), item('sel.shrink'), sep, item('sel.hide')] },
       { label: 'Filtre', items: () => [item('filter.last'), sep, ...FILTER_CATEGORIES.map((cat) => ({ label: cat, submenu: () => FILTERS.filter((f) => f.cat === cat).map((f) => item(`filter.${f.id}`)) }))] },
-      { label: 'Affichage', items: () => [item('view.zoomIn'), item('view.zoomOut'), item('view.fit'), item('view.actual'), sep, item('view.grid', { checked: app.view.showGrid }), item('view.pixelGrid', { checked: app.view.showPixelGrid }), item('view.compare'), sep, item('view.panels'), item('view.fullscreen')] },
-      { label: 'Aide', items: () => [item('help.shortcuts'), item('help.about')] },
+      { label: 'Affichage', items: () => [item('view.zoomIn'), item('view.zoomOut'), item('view.fit'), item('view.actual'), sep, item('view.grid', { checked: app.view.showGrid }), item('view.pixelGrid', { checked: app.view.showPixelGrid }), item('view.compare'), sep, item('view.panels'), item('view.fullscreen'), sep, item('view.gpu', { checked: gpuEnabled() })] },
+      { label: 'Aide', items: () => [item('help.palette'), item('help.shortcuts'), item('help.about')] },
     ];
   }
 

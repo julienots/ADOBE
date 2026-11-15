@@ -6,6 +6,7 @@ import { icon } from './icons.js';
 import { toast, dropdown, closeDropdown, textDialog, colorPicker } from './ui.js';
 import { createActions } from './actions.js';
 import { openImageFile, setupAutosave, getAutosave, restoreAutosave, exportDialog } from './io.js';
+import { ACCEPT } from './formats.js';
 import { DevelopSession, developPanel, looksPanel, layersPanel, filtersPanel, historyPanel, infoPanel } from './panels.js';
 import { BrushTool, CloneTool, HealTool, SmudgeTool, DodgeTool, BlurBrushTool, RedEyeTool } from './tools/paint.js';
 import { MarqueeTool, LassoTool, PolyLassoTool, WandTool, QuickSelectTool } from './tools/select.js';
@@ -42,7 +43,7 @@ const ui = {
     input.multiple = mode === 'layer';
     if (camera) input.setAttribute('capture', 'environment');
     else input.removeAttribute('capture');
-    input.accept = camera ? 'image/*' : 'image/*,.prisme,.json';
+    input.accept = camera ? 'image/*' : ACCEPT;
     input.onchange = async () => {
       const files = [...input.files];
       input.value = '';
@@ -493,6 +494,29 @@ window.addEventListener('paste', async (e) => {
   }
 });
 
+// ---------- Fichiers ouverts depuis le système ----------
+
+// PWA installée : « Ouvrir avec Prisme » depuis l'explorateur (File Handling API).
+if ('launchQueue' in window) {
+  window.launchQueue.setConsumer(async (params) => {
+    for (const [i, handle] of (params.files || []).entries()) {
+      const file = await handle.getFile();
+      await openImageFile(app, file, i > 0 && app.doc ? 'layer' : 'replace', handle);
+    }
+    if (app.doc) hideWelcome();
+  });
+}
+
+// Application Windows : fichiers passés au lancement ou par double-clic (pont sécurisé Electron).
+if (window.prismeNative?.onOpenFile) {
+  window.prismeNative.onOpenFile(async ({ name, data, type }) => {
+    const file = new File([data], name, { type: type || '' });
+    await openImageFile(app, file, 'replace');
+    if (app.doc) hideWelcome();
+  });
+  window.prismeNative.ready?.();
+}
+
 // ---------- Clavier ----------
 
 window.addEventListener('keydown', (e) => actions.handleKey(e));
@@ -527,6 +551,7 @@ if (isMobileLayout()) closeSheet();
 updateTop();
 updateStatus();
 showWelcome();
+if (new URLSearchParams(location.search).get('action') === 'new') setTimeout(() => actions.run('file.new'), 400);
 
 app.on('document', () => {
   hideWelcome();

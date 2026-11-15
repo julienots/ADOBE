@@ -1,7 +1,7 @@
 // Fonctions utilitaires partagées : DOM, canvas, couleurs, maths.
 
 export const APP_NAME = 'Prisme';
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '1.1.0';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
