@@ -568,6 +568,12 @@ export function createActions(app, ui) {
   def('file.open', 'Ouvrir…', () => ui.pickFiles('replace'), 'Ctrl+O');
   def('file.openLayer', 'Importer comme calque…', () => ui.pickFiles('layer'), 'Ctrl+Maj+O', hasDoc);
   def('file.camera', 'Prendre une photo…', () => ui.pickFiles('replace', true));
+  def('motion.open', 'Ouvrir Prisme Motion (animation & vidéo)', () => ui.openMotion(), 'Ctrl+Maj+M');
+  def('motion.send', 'Envoyer l\'image vers Prisme Motion', () => {
+    app.flushPending();
+    app.updateComposite();
+    return ui.openMotion({ image: app.compositeCanvas, name: app.doc.name });
+  }, '', hasDoc);
   def('file.save', 'Enregistrer le projet (.prisme)', () => saveProject(app), 'Ctrl+S', hasDoc);
   def('file.export', 'Exporter l\'image…', () => exportDialog(app), 'Ctrl+Maj+S', hasDoc);
   def('file.saveAs', 'Enregistrer le projet sous…', () => saveProject(app, true), 'Ctrl+Alt+Maj+S', () => hasDoc() && canSaveInPlace());
@@ -981,7 +987,7 @@ export function createActions(app, ui) {
 
   function menus() {
     return [
-      { label: 'Fichier', items: () => [item('file.new'), item('file.open'), item('file.camera'), item('file.openLayer'), sep, item('file.save'), item('file.saveAs'), sep, item('file.export'), item('file.exportPSD'), item('file.quickExport'), sep, item('file.close')] },
+      { label: 'Fichier', items: () => [item('file.new'), item('file.open'), item('file.camera'), item('file.openLayer'), sep, item('file.save'), item('file.saveAs'), sep, item('file.export'), item('file.exportPSD'), item('file.quickExport'), sep, item('motion.open'), item('motion.send'), sep, item('file.close')] },
       { label: 'Édition', items: () => [item('edit.undo'), item('edit.redo'), sep, item('edit.cut'), item('edit.copy'), item('edit.copyMerged'), item('edit.paste'), item('edit.clear'), sep, item('edit.fill'), item('ai.contentFill'), item('edit.fillPrimary'), item('edit.stroke'), sep, item('edit.transform'), item('edit.flipLayerH'), item('edit.flipLayerV')] },
       { label: 'Image', items: () => [
         { label: 'Réglages', submenu: () => FILTERS.filter((f) => f.cat === 'Réglages').map((f) => item(`filter.${f.id}`)) },

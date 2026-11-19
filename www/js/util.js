@@ -1,7 +1,7 @@
 // Fonctions utilitaires partagées : DOM, canvas, couleurs, maths.
 
 export const APP_NAME = 'Prisme';
-export const APP_VERSION = '1.1.0';
+export const APP_VERSION = '1.2.0';
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
@@ -11,7 +11,12 @@ export function el(tag, attrs = {}, ...children) {
   for (const [k, v] of Object.entries(attrs || {})) {
     if (v == null || v === false) continue;
     if (k === 'class') node.className = v;
-    else if (k === 'style' && typeof v === 'object') Object.assign(node.style, v);
+    else if (k === 'style' && typeof v === 'object') {
+      for (const [sk, sv] of Object.entries(v)) {
+        if (sk.startsWith('--')) node.style.setProperty(sk, sv);
+        else node.style[sk] = sv;
+      }
+    }
     else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2), v);
     else if (k === 'html') node.innerHTML = v;
     else if (k in node && typeof v !== 'string') node[k] = v;

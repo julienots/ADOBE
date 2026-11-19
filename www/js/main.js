@@ -54,6 +54,11 @@ const ui = {
   },
   showWelcome,
   hideWelcome,
+  // Prisme Motion est chargé à la demande (premier clic) pour garder un démarrage rapide.
+  async openMotion(opts = {}) {
+    const { openMotion } = await import('./motion/index.js');
+    return openMotion(app, opts);
+  },
   togglePanels() {
     document.body.classList.toggle('no-panels');
     const ws = $('#workspace');
@@ -80,6 +85,14 @@ $('#btn-undo').onclick = () => actions.run('edit.undo');
 $('#btn-redo').onclick = () => actions.run('edit.redo');
 $('#btn-export').onclick = () => (app.doc ? exportDialog(app) : ui.pickFiles());
 $('#zoom-label').onclick = () => app.view.fit();
+// Sélecteur Photo / Motion
+{
+  const sw = el('button', { class: 'mode-switch', title: 'Passer à Prisme Motion (animation, vidéo, effets)' },
+    el('span', { class: 'ms-opt on', html: `${icon('image', 15)}<span>Photo</span>` }),
+    el('span', { class: 'ms-opt', html: `${icon('film', 15)}<span>Motion</span>` }));
+  sw.onclick = () => ui.openMotion();
+  $('.brand').after(sw);
+}
 const compare = $('#btn-compare');
 const showBefore = (on) => {
   if (!app.doc) return;
@@ -364,7 +377,8 @@ async function showWelcome() {
     card('image', 'Ouvrir une photo', 'JPEG, PNG, WebP, GIF, AVIF…', () => ui.pickFiles('replace')),
     card('plus', 'Nouveau document', 'Formats réseaux sociaux, A4, 4K…', () => actions.newDocDialog()),
     isMobileLayout() || isCapacitor() ? card('camera', 'Prendre une photo', 'Appareil photo', () => ui.pickFiles('replace', true)) : null,
-    card('sparkles', 'Essayer la démo', 'Image d\'exemple', () => openDemo()));
+    card('sparkles', 'Essayer la démo', 'Image d\'exemple', () => openDemo()),
+    card('film', 'Créer une animation', 'Prisme Motion : vidéo, titres, effets', () => ui.openMotion()));
   const inner = el('div', { class: 'welcome-inner' },
     el('img', { class: 'logo', src: 'icons/icon-256.png', alt: '' }),
     el('h1', {}, `${APP_NAME} Photo`),
@@ -466,6 +480,7 @@ function openDemo() {
 
 let dragDepth = 0, dropHint = null;
 window.addEventListener('dragenter', (e) => {
+  if (document.body.classList.contains('motion-mode')) return;
   if (![...(e.dataTransfer?.types || [])].includes('Files')) return;
   e.preventDefault();
   if (dragDepth++ === 0) dropHint = document.body.appendChild(el('div', { class: 'drop-hint' }, app.doc ? 'Déposez : ouvrir (ou Maj = comme calque)' : 'Déposez votre photo ici'));
@@ -479,6 +494,7 @@ window.addEventListener('dragleave', () => {
 });
 window.addEventListener('drop', async (e) => {
   e.preventDefault();
+  if (document.body.classList.contains('motion-mode')) return;
   dragDepth = 0;
   dropHint?.remove();
   const files = [...(e.dataTransfer?.files || [])];
@@ -486,6 +502,7 @@ window.addEventListener('drop', async (e) => {
   if (app.doc) hideWelcome();
 });
 window.addEventListener('paste', async (e) => {
+  if (document.body.classList.contains('motion-mode')) return;
   if (e.target.closest?.('input, textarea')) return;
   const file = [...(e.clipboardData?.files || [])].find((f) => f.type.startsWith('image/'));
   if (file) {
@@ -519,7 +536,10 @@ if (window.prismeNative?.onOpenFile) {
 
 // ---------- Clavier ----------
 
-window.addEventListener('keydown', (e) => actions.handleKey(e));
+window.addEventListener('keydown', (e) => {
+  if (document.body.classList.contains('motion-mode')) return;
+  actions.handleKey(e);
+});
 
 // ---------- Avertissement de fermeture ----------
 
@@ -552,6 +572,7 @@ updateTop();
 updateStatus();
 showWelcome();
 if (new URLSearchParams(location.search).get('action') === 'new') setTimeout(() => actions.run('file.new'), 400);
+if (new URLSearchParams(location.search).get('mode') === 'motion' || location.hash === '#motion') setTimeout(() => ui.openMotion(), 50);
 
 app.on('document', () => {
   hideWelcome();

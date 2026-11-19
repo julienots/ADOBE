@@ -1,11 +1,13 @@
 // Service worker : fonctionnement hors ligne (stratégie « réseau d'abord, cache en secours »).
-const CACHE = 'prisme-v3';
+const CACHE = 'prisme-v4';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
   'js/main.js', 'js/app.js', 'js/util.js', 'js/doc.js', 'js/history.js', 'js/view.js', 'js/selection.js', 'js/imaging.js',
   'js/develop.js', 'js/filters.js', 'js/text.js', 'js/icons.js', 'js/ui.js', 'js/panels.js', 'js/actions.js', 'js/io.js',
   'js/ai.js', 'js/inpaint.js', 'js/gpu.js', 'js/formats.js', 'js/palette.js',
   'vendor/utif/UTIF.js', 'vendor/utif/pako_inflate.min.js', 'vendor/ag-psd/ag-psd.min.js', 'vendor/ort/ort.wasm.min.js', 'vendor/ort/ort-wasm-simd-threaded.mjs', 'vendor/ort/ort-wasm-simd-threaded.wasm', 'models/u2netp.onnx',
+  'css/motion.css', 'js/motion/index.js', 'js/motion/core.js', 'js/motion/model.js', 'js/motion/engine.js', 'js/motion/gl.js', 'js/motion/raster.js', 'js/motion/media.js',
+  'js/motion/timeline.js', 'js/motion/viewer.js', 'js/motion/panels.js', 'js/motion/widgets.js', 'js/motion/export.js', 'js/motion/store.js', 'js/motion/templates.js', 'vendor/mediabunny/mediabunny.min.mjs',
   'js/tools/base.js', 'js/tools/paint.js', 'js/tools/select.js', 'js/tools/misc.js',
   'icons/icon-192.png', 'icons/icon-256.png', 'icons/icon-32.png', 'icons/logo-ui.png', 'icons/superessence.png',
 ];

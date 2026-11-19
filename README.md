@@ -15,8 +15,8 @@ Chaque push déclenche le workflow **« Compiler Prisme (Android + Windows) »**
 2. En bas de la page, dans **Artifacts** :
    - **Prisme-Android-APK** → `Prisme.apk` à installer sur le téléphone
      (autoriser « Installer des applications inconnues »).
-   - **Prisme-Windows** → `Prisme-Setup-1.1.0.exe` (installateur) ou
-     `Prisme-Portable-1.1.0.exe` (sans installation).
+   - **Prisme-Windows** → `Prisme-Setup-1.2.0.exe` (installateur) ou
+     `Prisme-Portable-1.2.0.exe` (sans installation).
      Windows SmartScreen peut afficher un avertissement tant que l'application
      n'est pas signée : *Informations complémentaires → Exécuter quand même*.
    - **Prisme-Web** → le dossier `www/` à héberger sur n'importe quel serveur (PWA installable).
@@ -29,6 +29,40 @@ On peut aussi relancer la compilation à la main : *Actions → Compiler Prisme 
 npm run serve          # version web sur http://localhost:8080
 npm install && npm start   # version Windows/Mac/Linux (Electron)
 ```
+
+## Nouveautés de la version 1.2 — Prisme Motion (animation & compositing)
+
+Un deuxième espace de travail, dans l'esprit d'**After Effects**, accessible par le sélecteur
+**Photo | Motion** en haut de l'écran (ou *Fichier → Ouvrir Prisme Motion*, `Ctrl+Maj+M`).
+
+- **Moteur entièrement GPU (WebGL 2)** : composition en alpha prémultiplié, tampons recyclés,
+  flous calculés à résolution réduite pour les grands rayons, particules instanciées. Aperçu à
+  **résolution adaptative**, **cache RAM** des images rendues (barre verte dans la timeline) et
+  **pré-calcul RAM** (`0`) pour une lecture parfaitement fluide.
+- **Vidéo image par image (WebCodecs)** : décodage matériel, lecture séquentielle pré-décodée,
+  accès précis à n'importe quelle image ; audio synchronisé, forme d'onde, niveau audio animable.
+- **Compositions** multiples, **pré-compositions** (`Ctrl+Maj+C`), zone de travail (`B` / `N`).
+- **Calques** : vidéo, image, son, **texte** (animateurs par lettre : machine à écrire, fondu,
+  montée, pop, flou, vague), **formes** (rectangle, ellipse, polygone, étoile, tracé à la plume,
+  raccorder les tracés, pointillés, répéteur), **solides**, **particules**, objets nuls,
+  **calques d'effets**.
+- **Animation** : chronomètre et images clés sur toutes les propriétés, 9 interpolations
+  (lissage Easy Ease `F9`, dépassement, élastique, rebond, maintien…), trajectoire de mouvement,
+  **expressions** JavaScript (`wiggle`, `loopOut`, `time`, `valueAtTime`…), **parentage**,
+  **calques 3D** avec perspective, **flou de mouvement** réel (échantillons et obturateur réglables).
+- **30 préréglages d’animation** (apparitions, disparitions, texte, boucles, caméra) et
+  **4 modèles** (titre animé, lower third, révélation de logo, story verticale).
+- **31 effets GPU** : flous (gaussien, directionnel, radial), lueur, ombre portée, correction
+  colorimétrique, bichromie, dégradé, incrustation fond vert et par luminance, aberration
+  chromatique, glitch, ondulation, déplacement turbulent, tourbillon, renflement, miroir,
+  répétition, mosaïque, grain, vignetage, VHS, transitions (balayages, iris, stores).
+- **Masques** (rectangle, ellipse, plume ; contour progressif, expansion, modes), **caches**
+  alpha / luminance, **18 modes de fusion**.
+- **Export** plus rapide que le temps réel : **MP4** (H.264/HEVC), **MOV**, **WebM**, **WebM
+  transparent**, **GIF animé**, PNG ; avec le son.
+- Projet `.prismemotion` (médias intégrés), sauvegarde automatique, pont avec Prisme Photo
+  (envoyer une image vers Motion et inversement). Raccourcis d'After Effects (Espace, J/K, I/O,
+  [ ], P/S/R/T/A/U, Ctrl+D, Ctrl+Maj+D, Ctrl+K, Ctrl+M…). Interface tactile sur Android.
 
 ## Nouveautés de la version 1.1
 
@@ -60,7 +94,7 @@ de l'application n'est pas ralenti.
 | Compte obligatoire | Non | Oui |
 | Fonctionne hors ligne | Oui, entièrement (IA comprise) | En partie ; l'IA générative passe par le cloud |
 | Confidentialité | Les photos ne quittent jamais l'appareil | Fonctions IA envoyées aux serveurs d'Adobe |
-| Une seule app pour retouche + développement | Oui | Deux logiciels (Photoshop et Lightroom) |
+| Une seule app pour retouche + développement + animation | Oui | Trois logiciels (Photoshop, Lightroom, After Effects) |
 | Même app sur Windows, Android et navigateur | Oui | Apps différentes selon la plateforme |
 | Poids | ~20 Mo | Plusieurs Go |
 | Fichiers Photoshop (PSD) | Ouverture et export avec calques | Natif |
